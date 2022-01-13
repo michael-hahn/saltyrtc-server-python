@@ -32,7 +32,8 @@ COPY saltyrtc.key ./
 COPY CHANGELOG.rst LICENSE README.rst setup.cfg setup.py ./
 
 # Install the server
-# RUN pip install --no-cache-dir ".[logging, uvloop]"
+# Use environmental variable to turn off __debug__ or assertion
+ENV PYTHONOPTIMIZE=1
 RUN python3.7 setup.py install
 
 # Rnn the server
