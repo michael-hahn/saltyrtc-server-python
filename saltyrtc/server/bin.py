@@ -15,13 +15,13 @@ import os
 import signal
 import stat
 
-from . import (
+from saltyrtc.server import (
     __version__ as _version,
     server,
     util,
 )
-from .typing import ServerSecretPermanentKey  # noqa
-from .typing import LogbookLevel
+from saltyrtc.server.typing2 import ServerSecretPermanentKey  # noqa
+from saltyrtc.server.typing2 import LogbookLevel
 
 __all__ = (
     'cli',

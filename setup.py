@@ -69,6 +69,10 @@ setup(
         'click>=6.7',  # doesn't seem to follow semantic versioning (see #57)
         'websockets>=8.0,<9',
         'u-msgpack-python>=2.3,<3',
+        # required by splice
+        'Arpeggio==1.10.2',
+        'guppy3==3.1.1',
+        'z3-solver==4.8.10.0'
     ],
     tests_require=tests_require,
     extras_require={

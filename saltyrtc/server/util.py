@@ -22,7 +22,7 @@ import libnacl.public
 import logging
 import ssl
 
-from .typing import (
+from .typing2 import (
     LogbookLevel,
     Logger,
     LoggingLevel,

@@ -11,11 +11,17 @@ from typing import (
 import enum
 
 from .exception import MessageError
-from .typing import (
+from .typing2 import (
     Nonce,
     PingInterval,
     SignedKeys,
 )
+
+# !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+from saltyrtc.splice import identity
+from saltyrtc.splice.splice import SpliceMixin
+from saltyrtc.splice import splicetypes
+# =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 if TYPE_CHECKING:
     from .protocol import PathClient
@@ -146,7 +152,7 @@ class AddressType(enum.Enum):
     responder = 3
 
 
-class Address(int):
+class Address(splicetypes.SpliceInt):
     """
     A valid SaltyRTC address must be in the range of 0x00 to 0xff.
     """

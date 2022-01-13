@@ -4,7 +4,7 @@ from typing import List
 import collections
 import enum
 
-from .typing import EventCallback
+from .typing2 import EventCallback
 
 __all__ = (
     'Event',

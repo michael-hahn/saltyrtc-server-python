@@ -71,7 +71,7 @@ from .protocol import (
     Path,
     PathClient,
 )
-from .typing import (
+from .typing2 import (
     ChosenSubProtocol,
     DisconnectedData,
     EventCallback,
@@ -87,6 +87,15 @@ from .typing import (
     ServerPublicPermanentKey,
     ServerSecretPermanentKey,
 )
+
+# !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+from saltyrtc.splice import identity
+from saltyrtc.splice.splice import SpliceMixin
+from saltyrtc.splice import splicetypes
+
+import time
+import gc
+# =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 __all__ = (
     'serve',
@@ -276,6 +285,13 @@ class ServerProtocol:
 
         # Handle client until disconnected or an exception occurred
         hex_path = PathHex(binascii.hexlify(path.initiator_key).decode('ascii'))
+        # !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+        # Taint loss due to the hexlify function.
+        hex_path = SpliceMixin.to_splice(hex_path, trusted=path.initiator_key.trusted,
+                                         synthesized=path.initiator_key.synthesized,
+                                         taints=path.initiator_key.taints,
+                                         constraints=path.initiator_key.constraints)
+        # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
         close_future = asyncio.Future(loop=self._loop)  # type: asyncio.Future[None]
         try:
             await self.handle_client()
@@ -440,6 +456,13 @@ class ServerProtocol:
         try:
             initiator_key = InitiatorPublicPermanentKey(
                 binascii.unhexlify(initiator_key_hex))
+            # !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+            # Taint loss due to the unhexlify function.
+            initiator_key = SpliceMixin.to_splice(initiator_key, trusted=initiator_key_hex.trusted,
+                                                  synthesized=initiator_key_hex.synthesized,
+                                                  taints=initiator_key_hex.taints,
+                                                  constraints=initiator_key_hex.constraints)
+            # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
         except (binascii.Error, ValueError) as exc:
             raise PathError('Could not unhexlify path') from exc
 
@@ -1008,6 +1031,34 @@ class Server:
             await connection.close(CloseCode.going_away.value)
             return
 
+        # !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+        # Server received a Splice deletion request (when ws_path is not str but a dict)
+        # Note that because of our manipulation in WebSockets, the connection is not
+        # correctly established (because we short-circuit handshake() in WebSockets). Thus,
+        # once we are done performing deletion here, we cannot close connection in a normal
+        # way (i.e., by calling connection.close()). Instead, we just return an exception
+        # and let WebSockets to catch it.
+        if isinstance(ws_path, dict):
+            taints = ws_path['taints']
+            # TODO: Deletion code here
+            # Splice deletion code
+            system_obj_synthesized, obj_synthesized, obj_flagged = 0, 0, 0
+            start_timer = time.perf_counter()
+            objs = gc.get_objects()
+            print("[splice] Getting all {} heap objects takes: {}s"
+                  .format(len(objs), time.perf_counter() - start_timer))
+            print("[splice] Splice deletion begins...")
+            for obj in objs:
+                # Identify all splice-able objects
+                # if hasattr(obj, 'taints') and obj.taints == int(taints[0]):
+                if isinstance(obj, SpliceMixin) and obj.taints == int(taints[0]):
+                    print("[splice] splicing object: {} "
+                          "(type: {}, taints: {})".format(obj, type(obj), obj.taints))
+            # Close the connection by raising an exception (you will see exception and
+            # stack traces, but that's OK. The SaltyRTC server is still running correctly).
+            raise Exception("Deletion is finished")
+        # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+
         # Convert sub-protocol
         subprotocol = None  # type: Optional[SubProtocol]
         try:
@@ -1025,6 +1076,13 @@ class Server:
                 None, DisconnectedData(CloseCode.subprotocol_error.value))
         else:
             assert subprotocol is not None
+            # !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+            # Taint source: We could move the taint source further down the network stack
+            #               but it's mostly technical detail, nothing fundamental here.
+            ws_path = SpliceMixin.to_splice(ws_path, trusted=True, synthesized=False,
+                                            taints=identity.taint_id_from_websocket(connection),
+                                            constraints=[])
+            # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
             protocol = self.protocol_class(
                 self, subprotocol, connection, ws_path, loop=self._loop)
             await protocol.handler_task

@@ -20,7 +20,7 @@ from .exception import (
     SignalingError,
     SlotsFullError,
 )
-from .typing import (
+from .typing2 import (
     Job,
     Logger,
     Result,

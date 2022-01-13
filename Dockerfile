@@ -16,13 +16,17 @@ RUN apt-get update -qqy \
 WORKDIR /usr/src/saltyrtc-server
 
 # Copy sources
-COPY examples ./examples
+# COPY examples ./examples
 COPY saltyrtc ./saltyrtc
-COPY tests ./tests
+# COPY tests ./tests
+COPY saltyrtc.crt ./
+COPY saltyrtc.key ./
 COPY CHANGELOG.rst LICENSE README.rst setup.cfg setup.py ./
 
 # Install the server
-RUN pip install --no-cache-dir ".[logging, uvloop]"
+# RUN pip install --no-cache-dir ".[logging, uvloop]"
+RUN python setup.py install
 
 # Define server as entrypoint
-ENTRYPOINT ["/usr/local/bin/saltyrtc-server"]
+#ENTRYPOINT ["/usr/local/bin/saltyrtc-server"]
+CMD ["/usr/local/bin/saltyrtc-server", "serve", "-p", "8765", "-k", "./saltyrtc/server/permanent-key", "-tc", "./saltyrtc.crt", "-tk", "./saltyrtc.key"]

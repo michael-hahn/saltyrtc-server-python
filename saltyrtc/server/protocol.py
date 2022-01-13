@@ -51,8 +51,8 @@ from .task import (
     Tasks,
 )
 # noinspection PyUnresolvedReferences
-from .typing import Result  # noqa
-from .typing import (
+from .typing2 import Result  # noqa
+from .typing2 import (
     ClientCookie,
     ClientPublicKey,
     IncomingSequenceNumber,
@@ -68,6 +68,12 @@ from .typing import (
     ServerSecretSessionKey,
     SignBox,
 )
+
+# !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+from saltyrtc.splice import identity
+from saltyrtc.splice.splice import SpliceMixin
+from saltyrtc.splice import splicetypes
+# =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 __all__ = (
     'Path',
@@ -651,6 +657,13 @@ class PathClient:
         Arguments:
             - `slot_id`: The slot identifier of the client.
         """
+        # !!! SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+        # TODO: If slot_id is of Address type (or any of its subclasses), we seems to have
+        #  trouble with taint propagation (perhaps because Address and its subclasses
+        #  redefine __new__?). Since it is just to update the name of a log, we will
+        #  temporarily fix the problem by removing the taints here
+        if isinstance(slot_id, SpliceMixin):
+            slot_id = slot_id.unsplicify()
         self.log.name += '.0x{:02x}'.format(slot_id)
 
     def valid_cookie(self, cookie_in: Optional[ClientCookie]) -> bool:
@@ -747,6 +760,14 @@ class PathClient:
         # Receive data
         try:
             data = await self._connection.recv()
+            # !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+            # Taint source: We could move the taint source further down the network stack. For
+            #               example, we can instrument it in websockets/protocol.py layer. But
+            #               it's mostly technical detail, nothing fundamental here.
+            data = SpliceMixin.to_splice(data, trusted=True, synthesized=False,
+                                         taints=identity.taint_id_from_websocket(self._connection),
+                                         constraints=[])
+            # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
         except websockets.ConnectionClosed as exc:
             self.log.debug('Connection closed while receiving')
             disconnected = Disconnected(exc.code)
