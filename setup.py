@@ -62,7 +62,7 @@ tests_require = [
 setup(
     name='saltyrtc.server',
     version=get_version(),
-    packages=['saltyrtc', 'saltyrtc.server'],
+    packages=['saltyrtc', 'saltyrtc.server', 'saltyrtc.splice'],
     package_data={'saltyrtc.server': ['py.typed']},
     install_requires=[
         'libnacl>=1.5.0,<2',
@@ -72,7 +72,9 @@ setup(
         # required by splice
         'Arpeggio==1.10.2',
         'guppy3==3.1.1',
-        'z3-solver==4.8.10.0'
+        'z3-solver==4.8.10.0',
+        # add logging here directly for convenience
+        'logbook>=1.0.0,<2'
     ],
     tests_require=tests_require,
     extras_require={
