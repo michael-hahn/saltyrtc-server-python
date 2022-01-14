@@ -34,6 +34,8 @@ COPY CHANGELOG.rst LICENSE README.rst setup.cfg setup.py ./
 # Install the server
 # Use environmental variable to turn off __debug__ or assertion
 ENV PYTHONOPTIMIZE=1
+# Use environmental variable to turn off runtime warnings
+ENV PYTHONWARNINGS="ignore"
 RUN python3.7 setup.py install
 
 # Rnn the server
