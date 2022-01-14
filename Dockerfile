@@ -31,6 +31,9 @@ COPY saltyrtc.crt ./
 COPY saltyrtc.key ./
 COPY CHANGELOG.rst LICENSE README.rst setup.cfg setup.py ./
 
+# WebSocket server.py is modified (if Splice is used; no effect if not used)
+RUN cp websockets/server.py /usr/lib/python3.7/websockets/server.py
+
 # Install the server
 # Use environmental variable to turn off __debug__ or assertion
 ENV PYTHONOPTIMIZE=1
