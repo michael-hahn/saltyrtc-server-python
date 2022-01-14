@@ -69,13 +69,13 @@ from .typing2 import (
     SignBox,
 )
 
-# !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+# !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 from saltyrtc.server import __splice__
 from saltyrtc.splice import identity
 from saltyrtc.splice.splice import SpliceMixin
 if __splice__:
-    from .task import SpliceTasks
-# =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+    from .task import SpliceTasks, SpliceJobQueue
+# =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
 __all__ = (
     'Path',
@@ -431,13 +431,16 @@ class PathClient:
         self.type = None  # type: Optional[AddressType]
         self.keep_alive_timeout = KEEP_ALIVE_TIMEOUT
         self.keep_alive_pings = 0
-        self.jobs = JobQueue(self.log, self._loop)  # type: JobQueue
-        # !!! SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+        # !!! SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+        # self.jobs = JobQueue(self.log, self._loop)  # type: JobQueue
+        self.jobs = SpliceJobQueue(self.log, self._loop,
+                                   taints=identity.taint_id_from_websocket(self._connection)) if __splice__ \
+            else JobQueue(self.log, self._loop)
         # self.tasks = Tasks(self.log, self._loop)
         self.tasks = SpliceTasks(self.log, self._loop,
                                  taints=identity.taint_id_from_websocket(self._connection)) if __splice__ \
             else Tasks(self.log, self._loop)
-        # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+        # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
         # Schedule connection closed future
         def _connection_closed(_: Any) -> None:
