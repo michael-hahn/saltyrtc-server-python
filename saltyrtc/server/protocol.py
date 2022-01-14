@@ -73,6 +73,8 @@ from .typing2 import (
 from saltyrtc.server import __splice__
 from saltyrtc.splice import identity
 from saltyrtc.splice.splice import SpliceMixin
+if __splice__:
+    from .task import SpliceTasks
 # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 __all__ = (
@@ -430,7 +432,12 @@ class PathClient:
         self.keep_alive_timeout = KEEP_ALIVE_TIMEOUT
         self.keep_alive_pings = 0
         self.jobs = JobQueue(self.log, self._loop)  # type: JobQueue
-        self.tasks = Tasks(self.log, self._loop)
+        # !!! SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+        # self.tasks = Tasks(self.log, self._loop)
+        self.tasks = SpliceTasks(self.log, self._loop,
+                                 taints=identity.taint_id_from_websocket(self._connection)) if __splice__ \
+            else Tasks(self.log, self._loop)
+        # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
         # Schedule connection closed future
         def _connection_closed(_: Any) -> None:

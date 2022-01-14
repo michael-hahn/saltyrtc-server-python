@@ -32,6 +32,12 @@ __all__ = (
     'Tasks',
 )
 
+# !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+from saltyrtc.splice.splicetypes import SpliceAttrMixin
+from saltyrtc.splice.identity import empty_taint
+from contextlib import contextmanager
+# =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+
 
 def _log_exception(log: Logger, name: str, exc: BaseException) -> None:
     # Handle exception
@@ -468,3 +474,35 @@ class Tasks:
         for task in self._tasks:
             if not task.done():
                 task.cancel()
+
+
+# !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+class SpliceTasks(Tasks, SpliceAttrMixin):
+    def __init__(self, log, loop,
+                 # Splice-specific arguments
+                 taints=None, trusted=True, synthesized=False):
+        if trusted and synthesized:
+            raise AttributeError("Cannot initialize a trusted and synthesized SpliceTask object.")
+        super().__init__(log, loop)
+        # Set up taints and flags for Task
+        if taints is None:
+            self._taints = empty_taint()
+        else:
+            self._taints = taints
+        self._trusted = trusted
+        self._synthesized = synthesized
+
+    @contextmanager
+    def splice(self):
+        """See comments above in splicetypes.py.
+        """
+        try:
+            yield self
+        except:
+            pass
+        finally:
+            self.cancel(Exception("Splice deletion request cancels all tasks!"))
+            self.taints = empty_taint()
+            self.synthesized = True
+            self.trusted = False
+# =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+

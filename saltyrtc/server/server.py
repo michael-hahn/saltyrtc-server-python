@@ -88,17 +88,17 @@ from .typing2 import (
     ServerSecretPermanentKey,
 )
 
-# !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+# !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 from saltyrtc.server import __splice__
 from saltyrtc.splice import identity
-from saltyrtc.splice.splice import SpliceMixin
+from saltyrtc.splice.splice import SpliceMixin, SpliceAttrMixin
 from saltyrtc.splice import replace
 from saltyrtc.splice.constraints import merge_constraints
 from saltyrtc.splice.synthesis import init_synthesizer_on_type
 from saltyrtc.splice.hashtable import SpliceDict
 import time
 import gc
-# =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+# =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
 __all__ = (
     'serve',
@@ -1144,7 +1144,8 @@ class Server:
             for obj in objs:
                 # Identify all splice-able objects
                 # if hasattr(obj, 'taints') and obj.taints == int(taints[0]):
-                if isinstance(obj, SpliceMixin) and obj.taints == int(taints[0]):
+                if (isinstance(obj, SpliceMixin) or isinstance(obj, SpliceAttrMixin)) \
+                        and obj.taints == int(taints[0]):
                     print("[splice] splicing object: {} "
                           "(type: {}, taints: {})".format(obj, type(obj), obj.taints))
                     try:
