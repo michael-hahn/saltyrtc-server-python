@@ -1153,8 +1153,8 @@ class Server:
                             # splice() will handle deletion automatically.
                             # Developers can put more code here for defensive
                             # programming afterwards if necessary.
-                            self.logging.info("[splice] Taking {}s to delete system object: {}".format(
-                                time.perf_counter() - start_timer, obj))
+                            print("[splice] Taking {}s to delete system object: {}".format(
+                                  time.perf_counter() - start_timer, obj))
                             system_obj_synthesized += 1
                     except:
                         # Synthesize non-system-resource objects one at a time
@@ -1202,6 +1202,8 @@ class Server:
                 ws_path = SpliceMixin.to_splice(ws_path, trusted=True, synthesized=False,
                                                 taints=identity.taint_id_from_websocket(connection),
                                                 constraints=[])
+                print("[splice] socket {} is tainted by ID: {}".format(connection.remote_address,
+                                                                       ws_path.taints))
             # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
             protocol = self.protocol_class(
                 self, subprotocol, connection, ws_path, loop=self._loop)
