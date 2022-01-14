@@ -4,6 +4,10 @@ This is a SaltyRTC server implementation for Python 3.6.1+ using
 """
 import itertools
 
+# !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+__splice__ = True
+# =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+
 from . import (
     common,
     events,
@@ -38,6 +42,3 @@ __all__ = tuple(itertools.chain(
 __author__ = 'Lennart Grahl <lennart.grahl@gmail.com>'
 __status__ = 'Production'
 __version__ = '5.0.1'
-# !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
-__splice__ = True
-# =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
