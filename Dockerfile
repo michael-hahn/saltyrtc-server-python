@@ -31,15 +31,15 @@ COPY saltyrtc.crt ./
 COPY saltyrtc.key ./
 COPY CHANGELOG.rst LICENSE README.rst setup.cfg setup.py ./
 
-# WebSocket server.py is modified (if Splice is used; no effect if not used)
-RUN cp websockets/server.py /usr/lib/python3.7/websockets/server.py
-
 # Install the server
 # Use environmental variable to turn off __debug__ or assertion
 ENV PYTHONOPTIMIZE=1
 # Use environmental variable to turn off runtime warnings
 ENV PYTHONWARNINGS="ignore"
 RUN python3.7 setup.py install
+
+# WebSocket server.py is modified (if Splice is used; no effect if not used)
+RUN cp ./saltyrtc/websockets/server.py /usr/local/lib/python3.7/dist-packages/websockets-8.1-py3.7-linux-x86_64.egg/websockets/server.py
 
 # Rnn the server
 CMD ["/usr/local/bin/saltyrtc-server", "serve", "-p", "8765", "-k", "./saltyrtc/server/permanent-key", "-tc", "./saltyrtc.crt", "-tk", "./saltyrtc.key"]
