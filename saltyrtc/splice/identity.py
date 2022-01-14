@@ -49,7 +49,7 @@ def taint_id_from_websocket(connection):
     # So we implement this function just for testing and convenience
     remote_address = connection.remote_address
     taint = get_taint_from_id(remote_address[1])
-    print("[splice] socket {} is tainted by ID: {}".format(remote_address, taint))
+    # print("[splice] socket {} is tainted by ID: {}".format(remote_address, taint))
     return taint
 
 
