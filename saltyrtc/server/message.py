@@ -61,9 +61,8 @@ from .typing2 import (
 )
 
 # !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
-from saltyrtc.splice import identity
+from saltyrtc.server import __splice__
 from saltyrtc.splice.splice import SpliceMixin
-from saltyrtc.splice import splicetypes
 # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 if TYPE_CHECKING:
@@ -428,25 +427,26 @@ class IncomingMessage(CookedMessage, IncomingMessageMixin, metaclass=abc.ABCMeta
             cookie_in, source, destination, csn_in = struct.unpack(NONCE_FORMATTER, nonce)
             csn_in, *_ = struct.unpack(
                 '!Q', b'\x00\x00' + csn_in)
-            # !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+            # !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
             # Taint loss due to the unpack function (nonce is properly tainted).
-            cookie_in = SpliceMixin.to_splice(cookie_in, trusted=nonce.trusted,
-                                              synthesized=nonce.synthesized,
-                                              taints=nonce.taints,
-                                              constraints=nonce.constraints)
-            source = SpliceMixin.to_splice(source, trusted=nonce.trusted,
-                                           synthesized=nonce.synthesized,
-                                           taints=nonce.taints,
-                                           constraints=nonce.constraints)
-            destination = SpliceMixin.to_splice(destination, trusted=nonce.trusted,
-                                                synthesized=nonce.synthesized,
-                                                taints=nonce.taints,
-                                                constraints=nonce.constraints)
-            csn_in = SpliceMixin.to_splice(csn_in, trusted=nonce.trusted,
-                                           synthesized=nonce.synthesized,
-                                           taints=nonce.taints,
-                                           constraints=nonce.constraints)
-            # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+            if __splice__:
+                cookie_in = SpliceMixin.to_splice(cookie_in, trusted=nonce.trusted,
+                                                  synthesized=nonce.synthesized,
+                                                  taints=nonce.taints,
+                                                  constraints=nonce.constraints)
+                source = SpliceMixin.to_splice(source, trusted=nonce.trusted,
+                                               synthesized=nonce.synthesized,
+                                               taints=nonce.taints,
+                                               constraints=nonce.constraints)
+                destination = SpliceMixin.to_splice(destination, trusted=nonce.trusted,
+                                                    synthesized=nonce.synthesized,
+                                                    taints=nonce.taints,
+                                                    constraints=nonce.constraints)
+                csn_in = SpliceMixin.to_splice(csn_in, trusted=nonce.trusted,
+                                               synthesized=nonce.synthesized,
+                                               taints=nonce.taints,
+                                               constraints=nonce.constraints)
+            # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
         except struct.error as exc:
             raise MessageError('Could not unpack nonce') from exc
         csn_in = IncomingSequenceNumber(csn_in)
@@ -481,24 +481,25 @@ class IncomingMessage(CookedMessage, IncomingMessageMixin, metaclass=abc.ABCMeta
     @classmethod
     def _unpack_payload(cls, payload: RawPayload) -> Payload:
         try:
-            # !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+            # !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
             # Taint loss due to unpackb.
             unpacked = umsgpack.unpackb(payload)
-            taints = payload.taints
-            trusted_tag = payload.trusted
-            synthesized_tag = payload.synthesized
-            constraints = payload.constraints
-            # unpacked seems to be a dictionary that contains
-            # values of various types, we taint those values
-            for unpacked_key in unpacked:
-                unpacked[unpacked_key] = SpliceMixin.to_splice(unpacked[unpacked_key],
-                                                               trusted=trusted_tag,
-                                                               synthesized=synthesized_tag,
-                                                               taints=taints,
-                                                               constraints=constraints)
+            if __splice__:
+                taints = payload.taints
+                trusted_tag = payload.trusted
+                synthesized_tag = payload.synthesized
+                constraints = payload.constraints
+                # unpacked seems to be a dictionary that contains
+                # values of various types, we taint those values
+                for unpacked_key in unpacked:
+                    unpacked[unpacked_key] = SpliceMixin.to_splice(unpacked[unpacked_key],
+                                                                   trusted=trusted_tag,
+                                                                   synthesized=synthesized_tag,
+                                                                   taints=taints,
+                                                                   constraints=constraints)
             return cast(Payload, unpacked)
             # return cast(Payload, umsgpack.unpackb(payload))
-            # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+            # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
         except (umsgpack.UnpackException, TypeError) as exc:
             raise MessageError('Could not unpack msgpack payload') from exc
 
@@ -512,13 +513,15 @@ class IncomingMessage(CookedMessage, IncomingMessageMixin, metaclass=abc.ABCMeta
         try:
             # !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
             # Taint loss due to decrypt. Decrypted payload should have the same taint as data
-            payload = SpliceMixin.to_splice(client.box.decrypt(data, nonce=nonce),
-                                            trusted=data.trusted,
-                                            synthesized=data.synthesized,
-                                            taints=data.taints,
-                                            constraints=data.constraints)
-            return RawPayload(payload)
-            # return RawPayload(client.box.decrypt(data, nonce=nonce))
+            if __splice__:
+                payload = SpliceMixin.to_splice(client.box.decrypt(data, nonce=nonce),
+                                                trusted=data.trusted,
+                                                synthesized=data.synthesized,
+                                                taints=data.taints,
+                                                constraints=data.constraints)
+                return RawPayload(payload)
+            else:
+                return RawPayload(client.box.decrypt(data, nonce=nonce))
             # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
         except (ValueError, libnacl.CryptError) as exc:
             raise MessageError('Could not decrypt payload') from exc

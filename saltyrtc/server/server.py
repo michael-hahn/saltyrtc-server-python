@@ -88,14 +88,17 @@ from .typing2 import (
     ServerSecretPermanentKey,
 )
 
-# !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+# !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+from saltyrtc.server import __splice__
 from saltyrtc.splice import identity
 from saltyrtc.splice.splice import SpliceMixin
-from saltyrtc.splice import splicetypes
-
+from saltyrtc.splice import replace
+from saltyrtc.splice.constraints import merge_constraints
+from saltyrtc.splice.synthesis import init_synthesizer_on_type
+from saltyrtc.splice.hashtable import SpliceDict
 import time
 import gc
-# =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+# =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 __all__ = (
     'serve',
@@ -112,6 +115,81 @@ ST = TypeVar('ST', bound='Server')
 CloseFuture = Union['asyncio.Future[None]', Coroutine[Any, Any, None]]
 Keys = Mapping[ServerPublicPermanentKey, ServerSecretPermanentKey]
 
+
+# !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+def concretize_and_merge_constraints(obj, unsplicify=True):
+    """
+    Return a set of concrete constraints for a Splice object.
+    For multiprocess to work, objects within the constraints
+    must be unsplicified. However, when building dependency
+    graph, objects need to keep their actual types. Therefore,
+    we make unsplificy an option in the argument.
+    """
+    # Concretize constraints for obj using symbolic
+    # constraints from its enclosing data structure.
+    concrete_constraints = []
+    # Each constraint in obj.constraints is a callable that takes
+    # the object as the only argument. Each callback function
+    # returns concrete constraints in disjunctive normal form.
+    for constraint in obj.constraints:
+        # NOTE: not unsplicify is a boolean which is used to signify
+        # that we are building constraints to create dependency graph
+        # (since we do not unsplicify when we build the graph).
+        obj_constraints = constraint(obj, not unsplicify)
+        if unsplicify:
+            # Unsplificy all Splice objects that are part of the constraint
+            for obj_constraint in obj_constraints:
+                for k, conditions in obj_constraint.items():
+                    new_conditions = []
+                    for condition in conditions:
+                        if isinstance(condition, SpliceMixin):
+                            new_conditions.append(condition.unsplicify())
+                        else:
+                            new_conditions.append(condition)
+                    obj_constraint[k] = new_conditions
+            concrete_constraints.append(obj_constraints)
+        else:
+            concrete_constraints.append(obj_constraints)
+    # Merge all concrete constraints, if needed
+    if not concrete_constraints:
+        merged_constraints = None
+    else:
+        merged_constraints = concrete_constraints[0]
+        for concrete_constraint in concrete_constraints[1:]:
+            merged_constraints = merge_constraints(merged_constraints, concrete_constraint)
+    return merged_constraints
+
+
+def synthesize_obj(obj_type, constraints):
+    """
+    Synthesize a new object based on its constraints.
+    It is possible that synthesis does not succeed because
+    for example constraints have conflicts. In such a case,
+    None is returned.
+    """
+    if constraints is not None:
+        synthesizer = init_synthesizer_on_type(obj_type)
+        # start_time = time.perf_counter()
+        synthesized_obj = synthesizer.splice_synthesis(constraints)
+        # logger.info("Synthesizing one object takes: {}".format(time.perf_counter() - start_time))
+        return synthesized_obj
+    return None
+
+
+def replace_obj(obj, references):
+    """Redirect all references to obj. If redirection succeeds, return True; otherwise, False."""
+    # Perform object replacement for objects that have a synthesized version
+    # We use guppy. Note that using ctypes.memmove does not seem to work (leads to segfault).
+    # ctypes.memmove(id(obj), id(synthesized_obj), object.__sizeof__(obj))
+    # ctypes.memmove ref: https://docs.python.org/2/library/ctypes.html#ctypes.memmove
+    try:
+        replace.replace(obj, references)
+        return True
+    except:
+        # Replacement should not fail, but just in case it fails, we want to know.
+        print("**** replacing {} failed ****".format(obj))
+    return False
+# =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
 async def serve(
         ssl_context: Optional[ssl.SSLContext],
@@ -285,13 +363,14 @@ class ServerProtocol:
 
         # Handle client until disconnected or an exception occurred
         hex_path = PathHex(binascii.hexlify(path.initiator_key).decode('ascii'))
-        # !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+        # !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
         # Taint loss due to the hexlify function.
-        hex_path = SpliceMixin.to_splice(hex_path, trusted=path.initiator_key.trusted,
-                                         synthesized=path.initiator_key.synthesized,
-                                         taints=path.initiator_key.taints,
-                                         constraints=path.initiator_key.constraints)
-        # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+        if __splice__:
+            hex_path = SpliceMixin.to_splice(hex_path, trusted=path.initiator_key.trusted,
+                                             synthesized=path.initiator_key.synthesized,
+                                             taints=path.initiator_key.taints,
+                                             constraints=path.initiator_key.constraints)
+        # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
         close_future = asyncio.Future(loop=self._loop)  # type: asyncio.Future[None]
         try:
             await self.handle_client()
@@ -456,13 +535,14 @@ class ServerProtocol:
         try:
             initiator_key = InitiatorPublicPermanentKey(
                 binascii.unhexlify(initiator_key_hex))
-            # !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+            # !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
             # Taint loss due to the unhexlify function.
-            initiator_key = SpliceMixin.to_splice(initiator_key, trusted=initiator_key_hex.trusted,
-                                                  synthesized=initiator_key_hex.synthesized,
-                                                  taints=initiator_key_hex.taints,
-                                                  constraints=initiator_key_hex.constraints)
-            # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+            if __splice__:
+                initiator_key = SpliceMixin.to_splice(initiator_key, trusted=initiator_key_hex.trusted,
+                                                      synthesized=initiator_key_hex.synthesized,
+                                                      taints=initiator_key_hex.taints,
+                                                      constraints=initiator_key_hex.constraints)
+            # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
         except (binascii.Error, ValueError) as exc:
             raise PathError('Could not unhexlify path') from exc
 
@@ -950,14 +1030,27 @@ class Paths:
     def __init__(self) -> None:
         self._log = util.get_logger('paths')
         self.number = 0
-        self.paths = {}  # type: Dict[InitiatorPublicPermanentKey, Path]
+        # !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+        # self.paths = {}  # type: Dict[InitiatorPublicPermanentKey, Path]
+        self.paths = SpliceDict() if __splice__ else {}
+        # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
     def get(self, initiator_key: InitiatorPublicPermanentKey) -> Path:
-        if self.paths.get(initiator_key) is None:
+        # !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+        # To make synthesis easier for existing implementation, we convert initiator_key
+        # into SpliceStr before saving it into SpliceDict as the key.
+        key = initiator_key
+        if __splice__:
+            key = str(initiator_key)
+        # if self.paths.get(initiator_key) is None:
+        if self.paths.get(key) is None:
             self.number += 1
-            self.paths[initiator_key] = Path(initiator_key, self.number, attached=True)
+            # self.paths[initiator_key] = Path(initiator_key, self.number, attached=True)
+            self.paths[key] = Path(initiator_key, self.number, attached=True)
             self._log.debug('Created new path: {}', self.number)
-        return self.paths[initiator_key]
+        # return self.paths[initiator_key]
+        return self.paths[key]
+        # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
     def clean(self, path: Path) -> None:
         if path.empty:
@@ -1038,7 +1131,7 @@ class Server:
         # once we are done performing deletion here, we cannot close connection in a normal
         # way (i.e., by calling connection.close()). Instead, we just return an exception
         # and let WebSockets to catch it.
-        if isinstance(ws_path, dict):
+        if __splice__ and isinstance(ws_path, dict):
             taints = ws_path['taints']
             # TODO: Deletion code here
             # Splice deletion code
@@ -1054,6 +1147,32 @@ class Server:
                 if isinstance(obj, SpliceMixin) and obj.taints == int(taints[0]):
                     print("[splice] splicing object: {} "
                           "(type: {}, taints: {})".format(obj, type(obj), obj.taints))
+                    try:
+                        start_timer = time.perf_counter()
+                        with obj.splice() as resource:
+                            # splice() will handle deletion automatically.
+                            # Developers can put more code here for defensive
+                            # programming afterwards if necessary.
+                            self.logging.info("[splice] Taking {}s to delete system object: {}".format(
+                                time.perf_counter() - start_timer, obj))
+                            system_obj_synthesized += 1
+                    except:
+                        # Synthesize non-system-resource objects one at a time
+                        start_timer = time.perf_counter()
+                        merged_constraints = concretize_and_merge_constraints(obj, unsplicify=False)
+                        synthesized_obj = synthesize_obj(type(obj), merged_constraints)
+                        # No synthesized object is produced, so the best we can do is to change object attributes.
+                        if synthesized_obj is None:
+                            obj.trusted = False
+                            obj.synthesized = True
+                            obj.taints = identity.empty_taint()
+                            obj.constraints = []
+                            obj_flagged += 1
+                        else:
+                            replace.replace_single(obj, synthesized_obj)
+                            obj_synthesized += 1
+                        print("[splice] Taking {}s to delete non-system object: {}".format(
+                              time.perf_counter() - start_timer, obj))
             # Close the connection by raising an exception (you will see exception and
             # stack traces, but that's OK. The SaltyRTC server is still running correctly).
             raise Exception("Deletion is finished")
@@ -1076,13 +1195,14 @@ class Server:
                 None, DisconnectedData(CloseCode.subprotocol_error.value))
         else:
             assert subprotocol is not None
-            # !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+            # !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
             # Taint source: We could move the taint source further down the network stack
             #               but it's mostly technical detail, nothing fundamental here.
-            ws_path = SpliceMixin.to_splice(ws_path, trusted=True, synthesized=False,
-                                            taints=identity.taint_id_from_websocket(connection),
-                                            constraints=[])
-            # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+            if __splice__:
+                ws_path = SpliceMixin.to_splice(ws_path, trusted=True, synthesized=False,
+                                                taints=identity.taint_id_from_websocket(connection),
+                                                constraints=[])
+            # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
             protocol = self.protocol_class(
                 self, subprotocol, connection, ws_path, loop=self._loop)
             await protocol.handler_task

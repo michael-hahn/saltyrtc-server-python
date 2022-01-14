@@ -11,8 +11,8 @@ from datetime import datetime, date, time, timedelta
 from collections import UserString
 from contextlib import contextmanager
 
-from .splice import SpliceMixin, SpliceAttrMixin
-from .identity import empty_taint, taint_id_from_addr
+from saltyrtc.splice.splice import SpliceMixin, SpliceAttrMixin
+from saltyrtc.splice.identity import empty_taint, taint_id_from_addr
 
 
 class SpliceInt(SpliceMixin, int):

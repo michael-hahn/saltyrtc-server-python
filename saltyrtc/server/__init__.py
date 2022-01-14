@@ -38,3 +38,6 @@ __all__ = tuple(itertools.chain(
 __author__ = 'Lennart Grahl <lennart.grahl@gmail.com>'
 __status__ = 'Production'
 __version__ = '5.0.1'
+# !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
+__splice__ = True
+# =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+

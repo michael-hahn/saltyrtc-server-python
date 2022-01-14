@@ -18,9 +18,11 @@ from .typing2 import (
 )
 
 # !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
-from saltyrtc.splice import identity
-from saltyrtc.splice.splice import SpliceMixin
-from saltyrtc.splice import splicetypes
+from saltyrtc.server import __splice__
+BASE_ADDRESS_TYPE = int
+if __splice__:
+    from saltyrtc.splice import splicetypes
+    BASE_ADDRESS_TYPE = splicetypes.SpliceInt
 # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
 
 if TYPE_CHECKING:
@@ -152,7 +154,9 @@ class AddressType(enum.Enum):
     responder = 3
 
 
-class Address(splicetypes.SpliceInt):
+# !!!SPLICE =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
+# class Address(int):
+class Address(BASE_ADDRESS_TYPE):
     """
     A valid SaltyRTC address must be in the range of 0x00 to 0xff.
     """

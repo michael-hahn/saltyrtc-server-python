@@ -16,7 +16,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-H', '--host', help='SaltyRTC server IP', default='127.0.0.1')
 parser.add_argument('-p', '--port', help='SaltyRTC server port', type=int, default=8765)
 parser.add_argument('-c', '--certs', help='path to certificate', default='../saltyrtc.crt')
-parser.add_argument('-t', '--taint', help='taint ID of the user to be deleted', type=int, default=549755813888)  # required=True)
+parser.add_argument('-t', '--taint', help='taint ID of the user to be deleted', type=int, default=512)  # required=True)
 args = parser.parse_args()
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
