@@ -28,14 +28,14 @@ id -nG
 git clone https://github.com/michael-hahn/saltyrtc-server-python.git
 cd ./saltyrtc-server-python
 
-# Create a Docker network called 'server'
+# Create a Docker network called 'saltyrtc'
 # You do not need the --driver bridge flag since it’s the default, but this example shows how to specify it.
 # Ref: https://docs.docker.com/network/network-tutorial-standalone/#use-user-defined-bridge-networks
-docker network create --driver bridge server --subnet 172.18.0.0/20
+docker network create --driver bridge saltyrtc --subnet 172.18.0.0/20
 # List Docker’s networks
 docker network ls
-# Inspect the 'server' network. This shows you its IP address and the fact that no containers are connected to it
-docker network inspect server
+# Inspect the 'saltyrtc' network. This shows you its IP address and the fact that no containers are connected to it
+docker network inspect saltyrtc
 
 # Make sure you have generated correct SSL key and certificate!
 # THE SSL CERTIFICATE SHOULD BE ASSOCIATED WITH THE IP OF THE SERVER (SEE BELOW --ip option)!
@@ -67,8 +67,17 @@ docker build --tag saltyrtc .
 # Now you can run the SaltyRTC container
 # Use CPU affinity to bind the docker container to a given CPU or CPUs
 # Ref: https://docs.docker.com/engine/reference/run/#runtime-constraints-on-resources
-# We use our user-defined bridged network 'server' to place SaltyRTC on a fixed IP
-docker run --rm --cpuset-cpus="0,1" --network server --ip="172.19.0.2" --name=saltyrtc saltyrtc
+# We use our user-defined bridged network 'saltyrtc' to place SaltyRTC on a fixed IP
+docker run --rm --cpuset-cpus="0" --network saltyrtc --ip="172.19.0.2" --name=saltyrtc saltyrtc
+
+# To run the experiment using Docker SDK for Python
+cd experiment_scripts
+# Set up a virtual environment
+python3.8 -m venv docker
+source docker/bin/activate
+# Install Docker SDK for Python
+pip install docker
+
 
 # MORE USEFUL LINKS ====================================================================================================
 # SaltyRTC:
