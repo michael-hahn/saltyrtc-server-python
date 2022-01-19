@@ -104,10 +104,16 @@ def cli(ctx: click.Context, verbosity: int, colored: bool) -> None:
         if colored:
             handler_class = logbook.more.ColorizedStderrHandler
         else:
-            handler_class = logbook.StderrHandler
+            # !!!SPLICE: log to a file instead of stderr
+            # handler_class = logbook.StderrHandler
+            handler_class = logbook.FileHandler
 
         # Set up logging handler
-        handler = handler_class(level=level)
+        if colored:
+            handler = handler_class(level=level)
+        else:
+            # !!!SPLICE: set up the file for FileHandler
+            handler = handler_class("./logs/server.log", level=level)
         handler.push_application()
         ctx.obj['logging_handler'] = handler
 

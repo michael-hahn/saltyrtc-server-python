@@ -1138,24 +1138,24 @@ class Server:
             system_obj_synthesized, obj_synthesized, obj_flagged = 0, 0, 0
             start_timer = time.perf_counter()
             objs = gc.get_objects()
-            print("[splice] Getting all {} heap objects takes: {}s"
-                  .format(len(objs), time.perf_counter() - start_timer))
-            print("[splice] Splice deletion begins...")
+            self._log.notice("[splice] Getting all {} heap objects takes: {}s"
+                             .format(len(objs), time.perf_counter() - start_timer))
+            self._log.debug("[splice] Splice deletion begins...")
             for obj in objs:
                 # Identify all splice-able objects
                 # if hasattr(obj, 'taints') and obj.taints == int(taints[0]):
                 if (isinstance(obj, SpliceMixin) or isinstance(obj, SpliceAttrMixin)) \
                         and obj.taints == int(taints[0]):
-                    print("[splice] splicing object: {} "
-                          "(type: {}, taints: {})".format(obj, type(obj), obj.taints))
+                    self._log.notice("[splice] splicing object: {} "
+                                     "(type: {}, taints: {})".format(obj, type(obj), obj.taints))
                     try:
                         start_timer = time.perf_counter()
                         with obj.splice() as resource:
                             # splice() will handle deletion automatically.
                             # Developers can put more code here for defensive
                             # programming afterwards if necessary.
-                            print("[splice] Taking {}s to delete system object: {}".format(
-                                  time.perf_counter() - start_timer, obj))
+                            self._log.notice("[splice] Taking {}s to delete system object: {}".format(
+                                time.perf_counter() - start_timer, obj))
                             system_obj_synthesized += 1
                     except:
                         # Synthesize non-system-resource objects one at a time
@@ -1172,8 +1172,8 @@ class Server:
                         else:
                             replace.replace_single(obj, synthesized_obj)
                             obj_synthesized += 1
-                        print("[splice] Taking {}s to delete non-system object: {}".format(
-                              time.perf_counter() - start_timer, obj))
+                        self._log.notice("[splice] Taking {}s to delete non-system object: {}".format(
+                            time.perf_counter() - start_timer, obj))
             # Close the connection by raising an exception (you will see exception and
             # stack traces, but that's OK. The SaltyRTC server is still running correctly).
             raise Exception("Deletion is finished")
@@ -1203,8 +1203,8 @@ class Server:
                 ws_path = SpliceMixin.to_splice(ws_path, trusted=True, synthesized=False,
                                                 taints=identity.taint_id_from_websocket(connection),
                                                 constraints=[])
-                print("[splice] socket {} is tainted by ID: {}".format(connection.remote_address,
-                                                                       ws_path.taints))
+                self._log.notice("[splice] socket {} is tainted by ID: {}".format(connection.remote_address,
+                                                                                  ws_path.taints))
             # =+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+
             protocol = self.protocol_class(
                 self, subprotocol, connection, ws_path, loop=self._loop)
