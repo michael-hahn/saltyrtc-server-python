@@ -55,18 +55,34 @@ def connect(cid, cpus):
 parser = argparse.ArgumentParser()
 parser.add_argument('-n', '--connections',
                     help="# of steady state initiator-responder pairs in the server",
-                    type=int, required=True)
+                    type=int, default=0)
 parser.add_argument('-p', '--cpus', 
                     help="number of available CPUs to run clients (default to 14 assuming a total of 16 CPUs, but one, CPU0, is used to run the server)", default=15)
+parser.add_argument('-k', '--kill',
+                    help="use this argument to stop all containers",
+                    action='store_true')
 args = parser.parse_args()
 
 # Connect to a Docker daemon
 daemon = docker.from_env()
+
+# If we want to use this script to simply stop all containers
+if args.kill:
+    containers = daemon.containers.list(all=True)
+    for container in containers:
+        container.stop()
+    exit(0)
+
+# Set up the volume for the server (volume will be created if not already exist)
+saltyrtc_volume = docker.types.Mount("/usr/src/saltyrtc-server/saltyrtc/server/logs", 
+                                     "saltyrtc-volume",
+                                     type="volume")
 # Create the SaltyRTC server container
 server = daemon.containers.create("saltyrtc-server",
                                   auto_remove=True,
                                   cpuset_cpus="0",
                                   detach=True,
+                                  mounts=[saltyrtc_volume],
                                   name="saltyrtc-server")
 # Connect the server to a specific IP on a specific network
 # Assume we already have the network named "saltyrtc" (172.19.0.0/20) set up
@@ -97,5 +113,5 @@ for i in range(args.connections):
 time.sleep(2)
 
 with Pool(processes=4) as pool:
-    pool.starmap(connect, [(1, '5'), (2, '6'), (3, '7'), (4, '8')])
+    pool.starmap(connect, [(1, '5'), (2, '6')])
 
