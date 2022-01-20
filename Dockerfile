@@ -42,4 +42,4 @@ RUN python3.7 setup.py install
 RUN cp ./saltyrtc/websockets/server.py /usr/local/lib/python3.7/dist-packages/websockets-8.1-py3.7-linux-x86_64.egg/websockets/server.py
 
 # Rnn the server
-CMD ["/usr/local/bin/saltyrtc-server", "serve", "-p", "8765", "-k", "./saltyrtc/server/permanent-key", "-tc", "./saltyrtc.crt", "-tk", "./saltyrtc.key"]
+CMD ["/usr/local/bin/saltyrtc-server", "-v", "4", "serve", "-p", "8765", "-k", "./saltyrtc/server/permanent-key", "-tc", "./saltyrtc.crt", "-tk", "./saltyrtc.key"]
