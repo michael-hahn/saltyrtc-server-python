@@ -43,8 +43,10 @@ def connect(cid, cpus):
                                       mounts=[saltyrtc_volume],
                                       tty=True,
                                       stderr=True)
+    # We need to give the client (initiator) a bit of time to setup
+    time.sleep(0.5)
+    # print("initiator-{}: {}".format(cid, initiator.logs(stdout=True, stderr=True)))
     conn_info = parse_initiator_log(initiator.logs().decode())
-    # logging.error("initiator-{}: {}".format(cid, initiator.logs(stdout=True, stderr=True)))
     # responder will be running on the same CPUs as the initiator
     responder = daemon.containers.run("saltyrtc-client",
                                       ["responder", "--path", conn_info['path'], "--auth-token", conn_info['auth-token']],
@@ -72,6 +74,7 @@ def serve():
                                       cpuset_cpus="0",
                                       detach=True,
                                       mounts=[saltyrtc_volume],
+                                      cap_add=["NET_ADMIN"],
                                       name="saltyrtc-server")
     # Connect the server to a specific IP on a specific network
     # Assume we already have the network named "saltyrtc" (172.19.0.0/20) set up
@@ -85,6 +88,9 @@ def serve():
     daemon.networks.get("saltyrtc").connect(server, ipv4_address="172.19.0.2")
     # Run the server in the background
     server.start()
+    # Add latency to the outbound traffic from the server
+    server.exec_run(["tc", "qdisc", "add", "dev", "eth1", "root", "netem", "delay", "100ms", "5ms"])
+
 
 if __name__ == '__main__':
     # Parse command line arguments
@@ -123,7 +129,8 @@ if __name__ == '__main__':
         # Set up N initiators (for steady state)
         for i in range(args.connections):
             # cpu = i % args.cpus + 1       # Each initiator/responder uses a destinated CPU (except CPU0)
-            cpu = "1-{}".format(args.cpus)  # Clients share all CPU resources except the one for the server
+            # cpu = "1-{}".format(args.cpus)  # Clients share all CPU resources except the one for the server
+            cpu = "1"
             connect(i, str(cpu))
         # Give it a bit more time to reach the steady state
         time.sleep(2)
@@ -139,7 +146,7 @@ if __name__ == '__main__':
         for i in range(args.multiple):
             new_clients.append((args.connections + i, cpus))
         # Run new clients
-        with Pool(processes=4) as pool:
+        with Pool(processes=16) as pool:
             pool.starmap(connect, new_clients)
         print("[SUCCESS] {} clients are running.".format(len(daemon.containers.list(all=True)) - 1))
 
