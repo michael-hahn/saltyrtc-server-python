@@ -99,10 +99,10 @@ def parse_all_workload_data(clients):
     latency_splice_emulated = []
 
     for client in clients:
-        fp = "./latency_data/client_0_{}.log".format(client)
-        fp_splice = "./latency_data/client_0_{}_splice.log".format(client)
-        fp_emulated = "./latency_data/client_0_{}_latency.log".format(client)
-        fp_emulated_splice = "./latency_data/client_0_{}_splice_latency.log".format(client)
+        fp = "./latency_data/clients_0_{}.log".format(client)
+        fp_splice = "./latency_data/clients_0_{}_splice.log".format(client)
+        fp_emulated = "./latency_data/clients_0_{}_latency.log".format(client)
+        fp_emulated_splice = "./latency_data/clients_0_{}_splice_latency.log".format(client)
 
         r = parse_latency_stats(fp)
         r_s = parse_latency_stats(fp_splice)
