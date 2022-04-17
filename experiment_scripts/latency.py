@@ -53,14 +53,13 @@ def parse_latency_stats(fp):
     return sum(latency) / len(latency)
 
 
-def workload_latency_chart(labels, latency, latency_splice, latency_emulated, latency_emulated_splice, outfile):
+def workload_latency_chart(labels, latency, latency_splice, emulated, outfile):
     """
     Plot client (initiator and responder peers) perceived latency.
     :param labels: a list of numbers of clients in the experiment, e.g., [1, 2, 4, 8, 16, 32]
     :param latency: latency (in milliseconds) corresponds to labels
     :param latency_splice: same as latency, but the splice results
-    :param latency_emulated: same as latency, but with network emulation
-    :param latency_emulated_splice: same as latency, but with network emulation and Splice
+    :param emulated: whether network emulation is on
     :param outfile: output file path
     """
     x = labels
@@ -68,12 +67,11 @@ def workload_latency_chart(labels, latency, latency_splice, latency_emulated, la
 
     latency = np.array(latency)
     latency_splice = np.array(latency_splice)
-    latency_emulated = np.array(latency_emulated)
-    latency_emulated_splice = np.array(latency_emulated_splice)
-    ax.plot(x, latency_emulated, color=mcolors.CSS4_COLORS['darkred'], marker='*', label='Baseline (100 RTT)')
-    ax.plot(x, latency_emulated_splice, color=mcolors.CSS4_COLORS['darkorange'], marker='x', label='Splice (100 RTT)')
-    ax.plot(x, latency, color=mcolors.CSS4_COLORS['darkblue'], marker='o', label='Baseline (0 RTT)')
-    ax.plot(x, latency_splice, color=mcolors.CSS4_COLORS['darkgreen'], marker='^', label='Splice (0 RTT)')
+
+    ax.plot(x, latency, color=mcolors.CSS4_COLORS['darkblue'], marker='o',
+            label='Baseline (100 RTT)' if emulated else 'Baseline (0 RTT)')
+    ax.plot(x, latency_splice, color=mcolors.CSS4_COLORS['darkgreen'], marker='^',
+            label='Splice (100 RTT)' if emulated else 'Splice (0 RTT)')
 
     # ax.set_ylim(0, 100)
     ax.set_xlabel('# of Concurrent Initiator/Responder Client Peers')
@@ -114,7 +112,8 @@ def parse_all_workload_data(clients):
         latency_emulated.append(r_e)
         latency_splice_emulated.append(r_s_e)
 
-    workload_latency_chart(clients, latency, latency_splice, latency_emulated, latency_splice_emulated, 'latency')
+    workload_latency_chart(clients, latency, latency_splice, False, 'latency')
+    workload_latency_chart(clients, latency_emulated, latency_splice_emulated, True, 'latency_emulated')
 
 
 if __name__ == '__main__':
